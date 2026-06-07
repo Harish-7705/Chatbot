@@ -14,10 +14,16 @@ API_KEY = os.environ.get("GEMINI_API_KEY")
 if not API_KEY:
     raise RuntimeError("GEMINI_API_KEY environment variable is not set")
 genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel("gemini-2.5-flash")
+MODEL_NAME = "gemini-2.5-flash"
+model = genai.GenerativeModel(MODEL_NAME)
 
 # Store chat sessions
 chat_sessions = {}
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "model": MODEL_NAME})
+
 
 @app.route('/')
 def index():
@@ -25,6 +31,7 @@ def index():
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    session_id = None
     try:
         data = request.json
         user_message = data.get('message', '')
@@ -38,11 +45,22 @@ def chat():
         
         # Send message and get response
         response = chat.send_message(user_message)
-        
-        return jsonify({'response': response.text})
+        if not response.candidates:
+            raise ValueError("No response from Gemini. The message may have been blocked.")
+
+        return jsonify({"response": response.text})
     except Exception as e:
         app.logger.exception("Chat request failed")
-        return jsonify({"error": str(e)}), 500
+        if session_id and session_id in chat_sessions:
+            del chat_sessions[session_id]
+
+        error = str(e)
+        if "429" in error or "quota" in error.lower():
+            error = (
+                "Gemini API quota exceeded. Create a new API key at "
+                "https://aistudio.google.com/apikey and set GEMINI_API_KEY on Render."
+            )
+        return jsonify({"error": error}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
