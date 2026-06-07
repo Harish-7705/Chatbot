@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Fitness Dashboard Demo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- React + ReactDOM + Babel from CDN for quick demo -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 16px; background:#f7f7fb; color:#222; }
+    .container { max-width:900px; margin:0 auto; }
+    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .panel { background:white; padding:12px; border-radius:6px; box-shadow:0 1px 4px rgba(20,20,40,.06); margin-bottom:12px; }
+    .row { display:flex; gap:12px; align-items:flex-start; }
+    .col { flex:1; }
+    .workout { border:1px solid #eee; padding:8px; border-radius:4px; margin-bottom:8px; }
+    .btn { padding:6px 10px; border:none; border-radius:4px; cursor:pointer; }
+    .btn-primary { background:#2f7aef; color:white; }
+    .small { font-size:12px; color:#555; }
+    .chart-bar { height:18px; background:#dbeafe; border-radius:9px; overflow:hidden; }
+    .chart-fill { height:100%; background:linear-gradient(90deg,#60a5fa,#3b82f6); text-align:right; padding-right:6px; color:white; font-size:12px; }
+    input, select { padding:6px; width:100%; box-sizing:border-box; margin-bottom:6px; }
+  </style>
+</head>
+<body>
+  <div id="root" class="container"></div>
+
+  <script type="text/babel">
+
+  const { useState, useEffect } = React;
+
+  // WorkoutItem: small component to display a workout and allow updating reps
+  function WorkoutItem({ workout, onUpdate }) {
+    const [reps, setReps] = useState(workout.reps);
+
+    // When trainer changes reps, push update immediately (reactive)
+    function save() {
+      const updated = { ...workout, reps: Number(reps) || 0 };
+      onUpdate(updated);
+    }
+
+    return (
+      <div className="workout">
+        <strong>{workout.name}</strong>
+        <div className="small">Duration: {workout.duration} mins</div>
+        <div style={{marginTop:8}}>
+          <label className="small">Reps / Target:</label>
+          <input value={reps} onChange={e => setReps(e.target.value)} />
+          <div style={{marginTop:6}}>
+            <button className="btn btn-primary" onClick={save}>Save</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ProgressChart: simple visual that reacts to progressPercent
+  function ProgressChart({ progressPercent }) {
+    const width = Math.max(0, Math.min(100, progressPercent));
+    return (
+      <div>
+        <div className="small">Weekly Progress</div>
+        <div className="chart-bar" style={{marginTop:6}}>
+          <div className="chart-fill" style={{width: width + '%'}}>{width}%</div>
+        </div>
+      </div>
+    );
+  }
+
+  // TrainerPanel: can update workouts (demonstrates state lifting)
+  function TrainerPanel({ workouts, onWorkoutsChange }) {
+    function updateWorkout(updated) {
+      const list = workouts.map(w => w.id === updated.id ? updated : w);
+      onWorkoutsChange(list);
+    }
+
+    return (
+      <div className="panel">
+        <h3>Trainer Controls</h3>
+        <div className="small">Update routine targets — changes apply instantly for members.</div>
+        <div style={{marginTop:10}}>
+          {workouts.map(w => (
+            <WorkoutItem key={w.id} workout={w} onUpdate={updateWorkout} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // MemberPanel: views personalized schedule and progress; reacts to workout changes
+  function MemberPanel({ member, workouts }) {
+    // simulate progress calculation based on workouts and member effort
+    const progress = Math.round(workouts.reduce((acc,w) => acc + (w.reps * 0.2), 0));
+    return (
+      <div className="panel">
+        <h3>{member.name}'s Dashboard</h3>
+        <div className="small">Personal schedule</div>
+        <ul>
+          {workouts.map(w => (
+            <li key={w.id}>{w.name} — target: {w.reps} reps</li>
+          ))}
+        </ul>
+        <ProgressChart progressPercent={progress} />
+      </div>
+    );
+  }
+
+  // Root App demonstrating component composition & reactive state
+  function App() {
+    // central state: workouts (could be backed by API / websocket)
+    const [workouts, setWorkouts] = useState([
+      { id: 1, name: "Push-ups", duration: 10, reps: 15 },
+      { id: 2, name: "Squats", duration: 12, reps: 20 },
+      { id: 3, name: "Plank", duration: 6, reps: 1 } // reps = minutes for plank
+    ]);
+
+    const member = { id: 101, name: "Anita" };
+
+    // simulate real-time updates from server (optional)
+    useEffect(() => {
+      // For demo: after 10s, simulate server-driven update (e.g., trainer changed routine elsewhere)
+      const t = setTimeout(() => {
+        setWorkouts(prev => prev.map(w => w.id === 2 ? {...w, reps: w.reps + 5} : w));
+      }, 10000);
+      return () => clearTimeout(t);
+    }, []);
+
+    return (
+      <div>
+        <header>
+          <h2>FitTrack — Interactive Dashboard</h2>
+          <div className="small">Realtime UI — component-driven</div>
+        </header>
+
+        <div className="row">
+          <div className="col">
+            <TrainerPanel workouts={workouts} onWorkoutsChange={setWorkouts} />
+          </div>
+
+          <div className="col">
+            <MemberPanel member={member} workouts={workouts} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
