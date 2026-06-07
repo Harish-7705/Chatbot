@@ -239,7 +239,7 @@
                     const bubble = addMessage('', false);
                     await typeText(bubble, data.response);
                 } else {
-                    addMessage('Sorry, something went wrong.', false);
+                    addMessage(data.error || 'Sorry, something went wrong.', false);
                 }
             } catch (error) {
                 removeTyping();

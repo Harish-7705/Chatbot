@@ -1,12 +1,20 @@
+import os
 from flask import Flask, render_template, request, jsonify
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except ImportError:
+    import sys
+    print("Error: google-generativeai package not found. Install it with: pip install google-generativeai")
+    sys.exit(1)
 
 app = Flask(__name__)
 
-# Configure Gemini API
-API_KEY = "AIzaSyBZ2KS3GlAXVr6KCWfoTm_-aXGgutQ0zLQ"
+# Configure Gemini API (set GEMINI_API_KEY in Render environment variables)
+API_KEY = os.environ.get("GEMINI_API_KEY")
+if not API_KEY:
+    raise RuntimeError("GEMINI_API_KEY environment variable is not set")
 genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel('gemini-2.0-flash')
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 # Store chat sessions
 chat_sessions = {}
@@ -33,7 +41,8 @@ def chat():
         
         return jsonify({'response': response.text})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        app.logger.exception("Chat request failed")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
